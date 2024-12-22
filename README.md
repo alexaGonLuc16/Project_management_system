@@ -25,7 +25,8 @@ This project is a task assignment system designed to manage employees, tasks, an
 
 ## Running Tests
 
-To run the tests, use:
+To run the tests, use the following command from the root directory:
+`python -m unittest discover -s tests -p "*.py" -v`
 
 - With `pytest`:  
   `pytest`
