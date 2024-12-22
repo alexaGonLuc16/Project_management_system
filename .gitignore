@@ -1,0 +1,11 @@
+# Ignor virtual environment
+env/
+venv/
+.venv/
+# setting files
+.vscode/
+.idea/
+# compilation files
+__pycache__/
+*.pyc
+*.pyo
