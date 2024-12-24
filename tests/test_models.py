@@ -33,17 +33,27 @@ class TestProject(unittest.TestCase):
     def test_add_task_to_project(self):
         project = Project(id=1, name="Project1", desc="Project Description")
         task = Task(id=1, id_proj=1, name="Task1", tech_used={"Python"}, desc="Task description", stat="Pending", deadline="2024-12-31", emp_needed=2)
-        
         project.add_task(task)
         self.assertIn(task, project.tasks)
+
+    def test_add_employee_to_project(self):
+        project = Project(id=1, name="Project1", desc="Project Description")
+        employee = Employee(id=1, name="John Doe", skills={"Python", "Django"})
+        project.add_employee(employee)
+        self.assertIn(employee, project.employees)
 
 class TestAssignmentServer(unittest.TestCase):
     def test_add_task(self):
         assignment_server = Assignment_Server()
         task = Task(id=1, id_proj=1, name="Task1", tech_used={"Python"}, desc="Task description", stat="Pending", deadline="2024-12-31", emp_needed=2)
-        
         assignment_server.add_task(task)
         self.assertIn(task, assignment_server.tasks)
+
+    def test_add_employee(self):
+        assignment_server = Assignment_Server()
+        employee = Employee(id=1, name="John Doe", skills={"Python", "Django"})
+        assignment_server.add_employee(employee)
+        self.assertIn(employee, assignment_server.employees)
 
     def test_get_matching_employees(self):
         employee1 = Employee(id=1, name="John Doe", skills={"Python", "Django"})
