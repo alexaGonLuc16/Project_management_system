@@ -22,4 +22,5 @@ class Project:
             raise TypeError("Only Employee objects can be added.")
         self.employees.add(employee)
         self.assignment_server.add_employee(employee)
+        
     
