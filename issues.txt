@@ -1,2 +1,0 @@
-check why the order of task assignment is executed randomly
-mark heap pq elements as valid or invalid to identify which ones have already been assigned and dont repeat them or complicate the algorithm process
