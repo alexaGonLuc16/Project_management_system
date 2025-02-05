@@ -9,7 +9,7 @@ class Project:
         self.description = desc
         self.tasks = set(tasks) if tasks else set()
         self.employees = set(emp) if tasks else set()
-        self.assignment_server = Assignment_Server(emp, tasks)
+        self.assignment_server = Assignment_Server(id, emp, tasks)
 
     def add_task(self, task):
         if not isinstance(task, Task):

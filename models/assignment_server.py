@@ -1,115 +1,104 @@
 from models.task import Task
 from models.employee import Employee
-import heapq
-
-# Create priority queue for skills ranking
-priority_skills = []
 
 class Assignment_Server:
-    def __init__(self, id_project, employees = None, tasks = None):
+    def __init__(self, id_project, employees=None, tasks=None):
         self.id_project = id_project
-        self.assignments = {} #key: task, value: employees -> technologies
-        self.tasks = set(tasks) if tasks else set()            #object array
-        self.employees = set(employees) if employees else set()    #object array
-        self.ranked_skills = {} #skills hashmap 
-        self.employee_map = {emp.id: emp for emp in self.employees}
-        self.task_map = {task.id: task for task in self.tasks}
+        # List of assignment dictionaries; each dictionary represents a task with key: skill, value: employee ID
+        self.assignments = []
+        # Maps each skill to a list of employee IDs who possess that skill
+        self.emp_per_skill = {}
+        # List of skills sorted by the number of employees who have them (ascending order)
+        self.ranked_skills = []
+        # Maps employee IDs to Employee objects
+        self.employee_map = {emp.id: emp for emp in employees} if employees else {}
+        # Maps task IDs to Task objects
+        self.task_map = {task.id: task for task in tasks} if tasks else {}
+        # Tracks the number of tasks each employee is assigned to
+        self.emp_checking = {emp.id: 0 for emp in employees} if employees else {}
 
-    def add_task(self, task): 
+    def add_task(self, task):
         if not isinstance(task, Task):
             raise TypeError("Only Task objects can be added.")
-        self.tasks.add(task)    
+        self.task_map[task.id] = task  # Add new task to the task map
 
-    def add_employee(self, employee): 
+    def add_employee(self, employee):
         if not isinstance(employee, Employee):
             raise TypeError("Only Employee objects can be added.")
-        self.employees.add(employee)    
+        self.employee_map[employee.id] = employee  # Add new employee to the employee map
+        # Update skill-to-employee mapping
         for skill in employee.skills:
-            if skill in self.ranked_skills:
-                self.ranked_skills[skill] += 1
-            else:
-                self.ranked_skills[skill] = 1              
-     
-    def get_matching_employees(self, task):
-        if not isinstance(task, Task):
-            raise TypeError("Argument must be a Task object.")
-        
-        matching_employees = {} #key: id_employee, value: set with matching skills
-        for emp in self.employees:
-            if not isinstance(emp, Employee):
-                    raise TypeError("Argument must be a Employee object.")
-            if task.technologies_used & emp.skills:
-                matching_employees[emp.id] = task.technologies_used & emp.skills
+            if skill in self.emp_per_skill:
+                self.emp_per_skill[skill].append(employee.id)
+        self.emp_checking[employee.id] = 0  # Initialize task assignment count for the new employee
 
-        return matching_employees
-    
-    def assign_all_tasks(self):
-        print("Contenido inicial de ranked_skills:", self.ranked_skills)
-        #dictionary for employee asignment
-        employee_checking = {}
-        for emp in self.employees:
-            if not isinstance(emp, Employee):
-                raise TypeError(f"Expected Employee object, but got {type(emp)}")
-            employee_checking[emp.id] = False
-
-        for task in self.tasks:    
-            if not isinstance(task, Task):
-                raise TypeError("Expected Task object in tasks set.")
-            map_employees = {} #employees per technology
-
+    def count_skills(self):
+        # Ensure all required technologies are keys in emp_per_skill
+        for task in self.task_map.values():
             for tech in task.technologies_used:
-                #list of skills to manage employee assingment               
-                if tech in self.ranked_skills:
-                    map_employees[tech] = set()
-                
-            #build checking for skills needed
-            skills_checking = {tech: 0 for tech in task.technologies_used}
+                if tech not in self.emp_per_skill:
+                    self.emp_per_skill[tech] = []
+        # Map employees to their respective skills
+        for emp in self.employee_map.values():
+            for skill in emp.skills:
+                if skill in self.emp_per_skill:
+                    self.emp_per_skill[skill].append(emp.id)
 
-            # Build priority queue based on ranked_skills
-            priority_skills = [(self.ranked_skills[tech], tech) for tech in task.technologies_used if tech in self.ranked_skills]
-            heapq.heapify(priority_skills)
-            skills_check_set = {skill for _, skill in priority_skills}
+    def rank_skills(self):
+        # Rank skills based on the number of employees possessing them (ascending order)
+        self.ranked_skills = sorted(
+            self.emp_per_skill.keys(),
+            key=lambda skill: len(self.emp_per_skill[skill])
+        )
 
-            matching = self.get_matching_employees(task)
-            if matching:
-                print("\nTask id: ", task.id)
-                print("Matching skills of employees: ", matching)
-            else:
-                print("Missing employees for task: ", task.id)
-            print("Skill top: ", priority_skills[0])
+    def prioritize_tasks(self):
+        # Sort tasks by their priority attribute (lower value indicates higher priority)
+        tasks_per_priority = sorted(
+            self.task_map.keys(),
+            key=lambda id: self.task_map[id].priority
+        )
+        return tasks_per_priority
 
-            for emp_id, _ in matching.items():
-                emp = next(e for e in self.employees if e.id == emp_id)  # Retrieve the object
-                if not isinstance(emp, Employee):
-                    raise TypeError(f"Expected Employee object, but got {type(emp)}")
-            
-                if priority_skills[0][1] in skills_check_set and priority_skills[0][1] in matching[emp_id] and emp.get_num_tasks() <= 2:
-                    self.assignments[task.id] = {}
-                    self.assignments[task.id][emp.id] = [priority_skills[0][1]]
-                     # Ensure that the project exists in emp.projects and is a set
-                    if self.id_project not in emp.projects:
-                        emp.projects[self.id_project] = set()  # Initialize as an empty set if the project is not present
-                        
-                    if len(emp.projects[self.id_project]) == 0 : 
-                        emp.projects[self.id_project].add(task.id) #assign task to employee
-                        print("employee: ", emp.id, "assigned to ")
-                        print("task ", emp.projects[self.id_project] ,"of project: ", self.id_project)
-                        matching[emp_id].remove(priority_skills[0][1])
-                        skills_checking[priority_skills[0][1]] = emp_id
-                        print("Current skills checking: ", priority_skills[0][1]," -> ", skills_checking[priority_skills[0][1]])
-                        skills_check_set.remove(priority_skills[0][1])
-                        heapq.heappop(priority_skills)#delete top element
-                        heapq.heapify(priority_skills)
+    def assign_all_tasks(self):
+        tasks_per_priority = self.prioritize_tasks()  # List of task IDs ordered by priority
+        self.count_skills()  # Map employees to skills
+        self.rank_skills()   # Rank skills based on employee availability
 
-                        if len(matching[emp_id]) > 0 and next(iter(matching[emp_id])) in skills_check_set:
-                            print("This employee has one more skill to assign")
-                            #assign one more technology to the employee
-                            if skills_checking[next(iter(matching[emp_id]))] == 0:
-                                skills_checking[next(iter(matching[emp_id]))] = emp_id
-                                skills_check_set.remove(next(iter(matching[emp_id])))
+        for i, task_id in enumerate(tasks_per_priority):
+            self.assignments.append({})  # Initialize assignment dictionary for the current task
+            task_skill_checking = {}     # Track which skills have been assigned for the current task
+            task_ranked_skills = []      # Skills required by the task, ordered by global skill ranking
+            # Identify and rank skills required for the task
+            for skill in self.ranked_skills:
+                if skill in self.task_map[task_id].technologies_used:
+                    task_ranked_skills.append(skill)
+                    task_skill_checking[skill] = 0  # Mark skill as unassigned
 
-                    print("skill assignment: ",  skills_checking)
-                else:
-                    heapq.heappop(priority_skills)
-                    heapq.heapify(priority_skills)
+            # Assign employees to each required skill
+            for skill,_ in task_skill_checking.items():
+                if task_skill_checking[skill] == 0:
+                    emp_id_aux = 0
+                    for emp_id in self.emp_per_skill[skill]:
+                        if self.emp_checking[emp_id] < 2:  # Limit of 2 tasks per employee
+                            self.assignments[i][skill] = emp_id  # Assign employee to skill
+                            emp_id_aux = emp_id
 
+                            if emp_id_aux != 0:
+                                task_skill_checking[skill] = 1  # Mark skill as assigned
+                                # Remove the assigned skill from the skill list
+                                task_ranked_skills.remove(skill)
+                                self.emp_checking[emp_id_aux] += 1
+
+                                # Assign additional skills if the employee has other matching technologies
+                                if (
+                                    self.emp_checking[emp_id_aux] == 1
+                                    and self.task_map[task_id].technologies_used & set(task_ranked_skills)
+                                ):
+                                    matching_skills = self.task_map[task_id].technologies_used & set(task_ranked_skills)
+                                    additional_skill = next(iter(matching_skills))
+                                    self.assignments[i][additional_skill] = emp_id_aux  # Assign additional skill
+                                    task_skill_checking[additional_skill] = 1  # Mark as assigned
+                                    # Remove the assigned skill from the skill list
+                                    task_ranked_skills.remove(additional_skill) 
+                                    self.emp_checking[emp_id_aux] += 1
+                            break
